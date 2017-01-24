@@ -11,7 +11,10 @@ add_definitions(-D__APPLE__ -D__DYNAMIC__ -DPRIVATE)
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_SOURCE_DIR}/private
 	${CMAKE_CURRENT_SOURCE_DIR}/internal
-	${CMAKE_SOURCE_DIR}/src/libc/derived)
+	${CMAKE_SOURCE_DIR}/src/libc/derived
+	${CMAKE_SOURCE_DIR}/src/libc/darwin
+	${CMAKE_SOURCE_DIR}/src/kernel/libsyscall
+	${CMAKE_SOURCE_DIR}/src/kernel/libsyscall/wrappers)
 
 set(platform_x86_64_sources
 	src/setjmp/x86_64/_setjmp.S

@@ -3,6 +3,7 @@ project(libplatform)
 cmake_minimum_required(VERSION 2.4.0)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdinc")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_arch_warnings -Wl,-flat_namespace -Wl,-undefined,suppress")
 
 add_definitions(-DTARGET_OS_MAC=1)
 add_definitions(-DHAVE_STDINT_H=1)

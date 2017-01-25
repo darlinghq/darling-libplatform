@@ -87,6 +87,7 @@ set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_platform.dylib")
 add_darling_library(platform SHARED ${platform_sources} $<TARGET_OBJECTS:platform_i386> $<TARGET_OBJECTS:platform_x86_64>)
 set_target_properties(platform PROPERTIES OUTPUT_NAME "system_platform")
 make_fat(platform)
+set_property(TARGET platform APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases")
 
 target_link_libraries(platform PRIVATE system_kernel compiler_rt)
 

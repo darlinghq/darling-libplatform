@@ -3,6 +3,7 @@ project(libplatform)
 cmake_minimum_required(VERSION 2.4.0)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdinc")
+# -Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_arch_warnings -Wl,-flat_namespace -Wl,-undefined,suppress")
 
 add_definitions(-DTARGET_OS_MAC=1)
@@ -82,11 +83,12 @@ set(platform_sources
 	#src/introspection/introspection.c
 )
 
-set(DYLIB_INSTALL_NAME "/usr/lib/system/libplatform.dylib")
+set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_platform.dylib")
 add_darling_library(platform SHARED ${platform_sources} $<TARGET_OBJECTS:platform_i386> $<TARGET_OBJECTS:platform_x86_64>)
+set_target_properties(platform PROPERTIES OUTPUT_NAME "system_platform")
 make_fat(platform)
 
-target_link_libraries(platform PRIVATE system_kernel system_dyld compiler_rt)
+target_link_libraries(platform PRIVATE system_kernel compiler_rt)
 
 #set(CMAKE_AR "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/ar/x86_64-apple-darwin11-ar")
 #set(CMAKE_RANLIB "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/misc/ranlib")

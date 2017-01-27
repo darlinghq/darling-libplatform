@@ -4,10 +4,9 @@ cmake_minimum_required(VERSION 2.4.0)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdinc")
 # -Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_arch_warnings -Wl,-flat_namespace -Wl,-undefined,suppress")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_arch_warnings -Wl,-bind_at_load")
 
 add_definitions(-DTARGET_OS_MAC=1)
-add_definitions(-DHAVE_STDINT_H=1)
 add_definitions(-D__APPLE__ -D__DYNAMIC__ -DPRIVATE)
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -84,16 +83,26 @@ set(platform_sources
 )
 
 set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_platform.dylib")
-add_darling_library(platform SHARED ${platform_sources} $<TARGET_OBJECTS:platform_i386> $<TARGET_OBJECTS:platform_x86_64>)
+add_circular(platform FAT
+	SOURCES ${platform_sources}
+	OBJECTS $<TARGET_OBJECTS:platform_i386> $<TARGET_OBJECTS:platform_x86_64>
+	LINK_FLAGS "-Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases"
+	SIBLINGS system_kernel compiler_rt system_c system_dyld
+	)
 set_target_properties(platform PROPERTIES OUTPUT_NAME "system_platform")
-make_fat(platform)
-set_property(TARGET platform APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases")
+#make_fat(platform)
+#set_property(TARGET platform APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases")
 
-target_link_libraries(platform PRIVATE system_kernel compiler_rt)
+#target_link_libraries(platform PRIVATE system_kernel compiler_rt)
 
-#set(CMAKE_AR "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/ar/x86_64-apple-darwin11-ar")
-#set(CMAKE_RANLIB "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/misc/ranlib")
-#add_library(platform_static STATIC ${platform_sources})
-#add_dependencies(platform_static ranlib x86_64-apple-darwin11-ar)
+set(CMAKE_AR "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/ar/x86_64-apple-darwin11-ar")
+set(CMAKE_RANLIB "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/misc/ranlib")
+add_library(platform_static32 STATIC ${platform_sources} $<TARGET_OBJECTS:platform_i386>)
+set_target_properties(platform_static32 PROPERTIES COMPILE_FLAGS "-arch i386 -DVARIANT_STATIC -fvisibility=hidden")
+add_dependencies(platform_static32 ranlib x86_64-apple-darwin11-ar)
+
+add_library(platform_static64 STATIC ${platform_sources} $<TARGET_OBJECTS:platform_x86_64>)
+set_target_properties(platform_static64 PROPERTIES COMPILE_FLAGS "-arch x86_64 -DVARIANT_STATIC -fvisibility=hidden")
+add_dependencies(platform_static64 ranlib x86_64-apple-darwin11-ar)
 
 install(TARGETS platform DESTINATION libexec/darling/usr/lib/system)

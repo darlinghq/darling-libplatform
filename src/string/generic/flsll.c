@@ -57,7 +57,7 @@ flsll(long long mask)
 #endif
 }
 
-#if VARIANT_DYLD && TARGET_IPHONE_SIMULATOR
+//#if VARIANT_DYLD && TARGET_IPHONE_SIMULATOR
 int
 flsl(long mask)
 {
@@ -99,4 +99,4 @@ fls(int mask)
 	return (bit);
 #endif
 }
-#endif
+//#endif

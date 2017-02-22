@@ -99,10 +99,10 @@ set(CMAKE_AR "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/ar/x86_64-ap
 set(CMAKE_RANLIB "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/misc/ranlib")
 add_library(platform_static32 STATIC ${platform_sources} $<TARGET_OBJECTS:platform_i386>)
 set_target_properties(platform_static32 PROPERTIES COMPILE_FLAGS "-arch i386 -DVARIANT_STATIC -fvisibility=hidden")
-add_dependencies(platform_static32 ranlib x86_64-apple-darwin11-ar)
+add_dependencies(platform_static32 ranlib x86_64-apple-darwin11-ar lipo)
 
 add_library(platform_static64 STATIC ${platform_sources} $<TARGET_OBJECTS:platform_x86_64>)
 set_target_properties(platform_static64 PROPERTIES COMPILE_FLAGS "-arch x86_64 -DVARIANT_STATIC -fvisibility=hidden")
-add_dependencies(platform_static64 ranlib x86_64-apple-darwin11-ar)
+add_dependencies(platform_static64 ranlib x86_64-apple-darwin11-ar lipo)
 
 install(TARGETS platform DESTINATION libexec/darling/usr/lib/system)

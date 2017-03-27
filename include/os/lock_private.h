@@ -27,8 +27,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdatomic.h>
-#include <machine/atomic.h>
 #include <os/base_private.h>
 #include <os/lock.h>
 

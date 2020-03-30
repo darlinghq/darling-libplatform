@@ -6,8 +6,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdinc")
 # -Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_arch_warnings -Wl,-bind_at_load")
 
-add_definitions(-DTARGET_OS_MAC=1)
-add_definitions(-D__APPLE__ -D__DYNAMIC__ -DPRIVATE)
+add_definitions(-DPRIVATE)
 
 include_directories(BEFORE
 	${CMAKE_CURRENT_SOURCE_DIR}/include

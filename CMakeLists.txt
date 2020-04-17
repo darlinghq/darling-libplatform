@@ -101,17 +101,14 @@ set_target_properties(platform PROPERTIES OUTPUT_NAME "system_platform")
 
 #target_link_libraries(platform PRIVATE system_kernel compiler_rt)
 
-set(CMAKE_AR "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/ar/x86_64-apple-darwin11-ar")
-set(CMAKE_RANLIB "${CMAKE_BINARY_DIR}/src/external/cctools-port/cctools/misc/ranlib")
-
 if (TARGET_i386)
-	add_library(platform_static32 STATIC ${platform_sources} $<TARGET_OBJECTS:platform_i386>)
+	add_darling_static_library(platform_static32 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_i386>)
 	set_target_properties(platform_static32 PROPERTIES COMPILE_FLAGS "-arch i386 -DVARIANT_STATIC -fvisibility=hidden")
 	add_dependencies(platform_static32 ranlib x86_64-apple-darwin11-ar lipo)
 endif (TARGET_i386)
 
 if (TARGET_x86_64)
-	add_library(platform_static64 STATIC ${platform_sources} $<TARGET_OBJECTS:platform_x86_64>)
+	add_darling_static_library(platform_static64 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_x86_64>)
 	set_target_properties(platform_static64 PROPERTIES COMPILE_OPTIONS "-arch;x86_64;-DVARIANT_STATIC;-fvisibility=hidden")
 	add_dependencies(platform_static64 ranlib x86_64-apple-darwin11-ar lipo)
 endif (TARGET_x86_64)

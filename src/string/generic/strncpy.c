@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Apple Inc. All rights reserved.
+ * Copyright (c) 2011 Apple, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -23,58 +23,30 @@
 
 #include <platform/string.h>
 
-#if !VARIANT_STATIC
-// to satisfy compiler-generated memset inside libplatform (e.g. makecontext)
-__attribute__((visibility("hidden")))
-void *
-memset(void *b, int c, size_t len)
-{
-	return _platform_memset(b, c, len);
-}
-#endif
+#if !_PLATFORM_OPTIMIZED_STRNCPY
 
-#if !_PLATFORM_OPTIMIZED_MEMSET
-
-void *
-_platform_memset(void *b, int c, size_t len) {
-	unsigned char pattern[4];
-
-	pattern[0] = (unsigned char)c;
-	pattern[1] = (unsigned char)c;
-	pattern[2] = (unsigned char)c;
-	pattern[3] = (unsigned char)c;
-
-	_platform_memset_pattern4(b, pattern, len);
-	return b;
+char *
+_platform_strncpy(char * restrict dst, const char * restrict src, size_t maxlen) {
+    const size_t srclen = _platform_strnlen(src, maxlen);
+    if (srclen < maxlen) {
+        //  The stpncpy() and strncpy() functions copy at most maxlen
+        //  characters from src into dst.
+        _platform_memmove(dst, src, srclen);
+        //  If src is less than maxlen characters long, the remainder
+        //  of dst is filled with '\0' characters.
+        _platform_memset(dst+srclen, 0, maxlen-srclen);
+    } else {
+        //  Otherwise, dst is not terminated.
+        _platform_memmove(dst, src, maxlen);
+    }
+    //  The strcpy() and strncpy() functions return dst.
+    return dst;
 }
 
 #if VARIANT_STATIC
-void *
-memset(void *b, int c, size_t len) {
-	return _platform_memset(b, c, len);
-}
-#endif
-
-#endif
-
-
-#if !_PLATFORM_OPTIMIZED_BZERO
-
-void
-_platform_bzero(void *s, size_t n)
-{
-	_platform_memset(s, 0, n);
-}
-
-#if VARIANT_STATIC
-void
-bzero(void *s, size_t n) {
-	_platform_bzero(s, n);
-}
-
-void
-__bzero(void *s, size_t n) {
-	_platform_bzero(s, n);
+char *
+strncpy(char * restrict dst, const char * restrict src, size_t maxlen) {
+	return _platform_strncpy(dst, src, maxlen);
 }
 #endif
 

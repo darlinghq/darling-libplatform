@@ -30,7 +30,7 @@
 
 #define OS_LOCK_STRUCT_DECL_INTERNAL(type, ...) \
 		typedef struct OS_LOCK_S_INTERNAL(type) { \
-			OS_LOCK_TYPE_STRUCT(type) * const osl_type; \
+			OS_LOCK_TYPE_STRUCT(type) * osl_type; \
 			__VA_ARGS__ \
 		} OS_LOCK_S_INTERNAL(type); \
 		typedef OS_LOCK_STRUCT_INTERNAL(type) *OS_LOCK_T_INTERNAL(type)
@@ -55,7 +55,5 @@
 			.osl_trylock = _os_lock_##type##_trylock, \
 			.osl_unlock = _os_lock_##type##_unlock, \
 		}
-
-#include "os/internal.h"
 
 #endif // __OS_LOCK_INTERNAL__

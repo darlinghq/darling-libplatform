@@ -33,13 +33,13 @@
 
 #define OS_STRINGIFY1(s) #s
 #define OS_STRINGIFY(s) OS_STRINGIFY1(s)
-#define OS_CONCAT1(x, y) x##y
-#define OS_CONCAT(x, y) OS_CONCAT1(x,y)
+#define OS_CONCAT1(x, y) x ## y
+#define OS_CONCAT(x, y) OS_CONCAT1(x, y)
 
 #ifdef	__ASSEMBLER__
-#define OS_VARIANT(f, v) OS_CONCAT(_,OS_CONCAT(f,OS_CONCAT($VARIANT$,v)))
+#define OS_VARIANT(f, v) OS_CONCAT(_, OS_CONCAT(f, OS_CONCAT($VARIANT$, v)))
 #else
-#define OS_VARIANT(f, v) OS_CONCAT(f,OS_CONCAT($VARIANT$,v))
+#define OS_VARIANT(f, v) OS_CONCAT(f, OS_CONCAT($VARIANT$, v))
 #endif
 
 #if defined(__ASSEMBLER__)
@@ -49,15 +49,15 @@
 #define OS_VARIANT_FUNCTION_START(name, variant, alignment) \
 	.text ; \
 	.align alignment, 0x90 ; \
-	.private_extern OS_VARIANT(name,variant) ; \
-	OS_VARIANT(name,variant) ## :
+	.private_extern OS_VARIANT(name, variant) ; \
+	OS_VARIANT(name, variant) ## :
 
 // GENERIC indicates that this function will be chosen as the generic
 // implementation (at compile time) when building targets which do not
 // support dyld variant resolves.
 #if defined(VARIANT_NO_RESOLVERS) || defined(VARIANT_DYLD)
 #define OS_VARIANT_FUNCTION_START_GENERIC(name, variant, alignment) \
-	OS_VARIANT_FUNCTION_START(name,variant,alignment) \
+	OS_VARIANT_FUNCTION_START(name, variant, alignment) \
 	.globl _ ## name ; \
 	_ ## name ## :
 #else

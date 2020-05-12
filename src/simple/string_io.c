@@ -37,8 +37,12 @@
 #endif
 
 #define BUF_SIZE(s)	(((BUF *)(s))->end - ((BUF *)(s))->buf + 1)
+#if DEBUG
+#define MYBUFSIZE	256
+#else
 /* we use a small buffer to minimize stack usage constraints */
 #define MYBUFSIZE	32
+#endif
 
 typedef struct _BUF {
 	char *buf;
@@ -180,6 +184,35 @@ dec(BUF *b, _esc_func esc, long long in, int width, int zero)
 		put_c(b, esc, zero);
 	if(neg)
 		put_c(b, esc, '-');
+	put_s(b, esc, cp);
+}
+
+/*
+ * Output the octal string representing the number in "n".  "width" is
+ * the minimum field width, and "zero" is a boolean value, true for zero padding
+ * (otherwise blank padding).
+ */
+static void
+oct(BUF *b, _esc_func esc, unsigned long long n, int width, int zero)
+{
+	char buf[32];
+	char *cp = buf + sizeof(buf);
+	ssize_t pad;
+
+	*--cp = 0;
+	if (n) {
+		while (n) {
+			*--cp = (n % 8) + '0';
+			n /= 8;
+		}
+	} else {
+		*--cp = '0';
+	}
+	pad = width - strlen(cp);
+	zero = zero ? '0' : ' ';
+	while (pad-- > 0) {
+		put_c(b, esc, zero);
+	}
 	put_s(b, esc, cp);
 }
 
@@ -330,6 +363,19 @@ __simple_bprintf(BUF *b, _esc_func esc, const char *fmt, va_list ap)
 				lflag++;
 				fmt++;
 				continue;
+			case 'o':
+				switch (lflag) {
+				case 0:
+					oct(b, esc, va_arg(ap, int), width, zero);
+					break;
+				case 1:
+					oct(b, esc, va_arg(ap, long), width, zero);
+					break;
+				default:
+					oct(b, esc, va_arg(ap, long long), width, zero);
+					break;
+				}
+				break;
 			case 'p':
 				hex(b, esc, (unsigned long)va_arg(ap, void *), width, zero, 0, 1);
 				break;
@@ -439,13 +485,10 @@ _simple_dprintf(int fd, const char *fmt, ...)
 _SIMPLE_STRING
 _simple_salloc(void)
 {
-	kern_return_t kr;
 	BUF *b;
 
-	kr = vm_allocate(mach_task_self(), (vm_address_t *)&b, VM_PAGE_SIZE, 1);
-	if (kr) {
-		__LIBPLATFORM_CLIENT_CRASH__(kr, "Failed to allocate memory for string");
-	}
+	if(vm_allocate(mach_task_self(), (vm_address_t *)&b, VM_PAGE_SIZE, 1))
+		return NULL;
 	b->ptr = b->buf = (char *)b + sizeof(BUF);
 	b->end = (char *)b + VM_PAGE_SIZE - 1;
 	b->full = _enlarge;
@@ -455,7 +498,8 @@ _simple_salloc(void)
 /*
  * The format string is interpreted with arguments from the va_list, and the
  * results are appended to the string maintained by the opaque structure, as
- * returned by a previous call to _simple_salloc(). Always returns 0.
+ * returned by a previous call to _simple_salloc().  Non-zero is returned on
+ * out-of-memory error.
  */
 int
 _simple_vsprintf(_SIMPLE_STRING b, const char *fmt, va_list ap)
@@ -466,8 +510,8 @@ _simple_vsprintf(_SIMPLE_STRING b, const char *fmt, va_list ap)
 /*
  * The format string is interpreted with arguments from the variable argument
  * list, and the results are appended to the string maintained by the opaque
- * structure, as returned by a previous call to _simple_salloc().
- * Always returns 0.
+ * structure, as returned by a previous call to _simple_salloc().  Non-zero is
+ * returned on out-of-memory error.
  */
 int
 _simple_sprintf(_SIMPLE_STRING b, const char *fmt, ...)
@@ -532,7 +576,7 @@ _simple_sresize(_SIMPLE_STRING b)
 
 /*
  * Append the null-terminated string to the string associated with the opaque
- * structure.  Always returns 0.
+ * structure.  Non-zero is returned on out-of-memory error.
  */
 int
 _simple_sappend(_SIMPLE_STRING b, const char *str)

@@ -766,7 +766,7 @@ __END_DECLS
 
 #ifdef __cplusplus
 extern "C++" {
-#if !(__has_include(<atomic>) && __has_feature(cxx_atomic))
+#if !(__has_include(<atomic>) && __has_extension(cxx_atomic))
 #error Cannot use inlined OSAtomic without <atomic> and C++11 atomics
 #endif
 #include <atomic>
@@ -801,9 +801,9 @@ typedef int64_t OSAtomic_int64_aligned64_t;
 #endif
 
 #if __has_attribute(always_inline)
-#define OSATOMIC_INLINE static __inline
-#else
 #define OSATOMIC_INLINE static __inline __attribute__((__always_inline__))
+#else
+#define OSATOMIC_INLINE static __inline
 #endif
 
 OSATOMIC_INLINE

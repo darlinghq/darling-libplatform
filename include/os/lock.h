@@ -39,8 +39,7 @@ OS_ASSUME_NONNULL_BEGIN
 __BEGIN_DECLS
 
 #define OS_UNFAIR_LOCK_AVAILABILITY \
-		__OSX_AVAILABLE(10.12) __IOS_AVAILABLE(10.0) \
-		__TVOS_AVAILABLE(10.0) __WATCHOS_AVAILABLE(3.0)
+		__API_AVAILABLE(macos(10.12), ios(10.0), tvos(10.0), watchos(3.0))
 
 /*!
  * @typedef os_unfair_lock
@@ -55,7 +54,7 @@ __BEGIN_DECLS
  * defined, they contain thread ownership information that the system may use
  * to attempt to resolve priority inversions.
  *
- * This lock must be unlocked from the same thread that locked it, attemps to
+ * This lock must be unlocked from the same thread that locked it, attempts to
  * unlock from a different thread will cause an assertion aborting the process.
  *
  * This lock must not be accessed from multiple processes or threads via shared
@@ -79,6 +78,7 @@ typedef struct os_unfair_lock_s {
 	uint32_t _os_unfair_lock_opaque;
 } os_unfair_lock, *os_unfair_lock_t;
 
+#ifndef OS_UNFAIR_LOCK_INIT
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 #define OS_UNFAIR_LOCK_INIT ((os_unfair_lock){0})
 #elif defined(__cplusplus) && __cplusplus >= 201103L
@@ -88,6 +88,7 @@ typedef struct os_unfair_lock_s {
 #else
 #define OS_UNFAIR_LOCK_INIT {0}
 #endif
+#endif // OS_UNFAIR_LOCK_INIT
 
 /*!
  * @function os_unfair_lock_lock
@@ -139,6 +140,47 @@ bool os_unfair_lock_trylock(os_unfair_lock_t lock);
 OS_UNFAIR_LOCK_AVAILABILITY
 OS_EXPORT OS_NOTHROW OS_NONNULL_ALL
 void os_unfair_lock_unlock(os_unfair_lock_t lock);
+
+/*!
+ * @function os_unfair_lock_assert_owner
+ *
+ * @abstract
+ * Asserts that the calling thread is the current owner of the specified
+ * unfair lock.
+ *
+ * @discussion
+ * If the lock is currently owned by the calling thread, this function returns.
+ *
+ * If the lock is unlocked or owned by a different thread, this function
+ * asserts and terminates the process.
+ *
+ * @param lock
+ * Pointer to an os_unfair_lock.
+ */
+OS_UNFAIR_LOCK_AVAILABILITY
+OS_EXPORT OS_NOTHROW OS_NONNULL_ALL
+void os_unfair_lock_assert_owner(os_unfair_lock_t lock);
+
+/*!
+ * @function os_unfair_lock_assert_not_owner
+ *
+ * @abstract
+ * Asserts that the calling thread is not the current owner of the specified
+ * unfair lock.
+ *
+ * @discussion
+ * If the lock is unlocked or owned by a different thread, this function
+ * returns.
+ *
+ * If the lock is currently owned by the current thread, this function asserts
+ * and terminates the process.
+ *
+ * @param lock
+ * Pointer to an os_unfair_lock.
+ */
+OS_UNFAIR_LOCK_AVAILABILITY
+OS_EXPORT OS_NOTHROW OS_NONNULL_ALL
+void os_unfair_lock_assert_not_owner(os_unfair_lock_t lock);
 
 __END_DECLS
 

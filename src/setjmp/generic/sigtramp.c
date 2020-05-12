@@ -53,6 +53,24 @@ int __in_sigtramp = 0;
 /* These defn should match the kernel one */
 #define UC_TRAD			1
 #define UC_FLAVOR		30
+#if defined(__ppc__) || defined(__ppc64__)	
+#define UC_TRAD64		20	
+#define UC_TRAD64_VEC		25	
+#define UC_FLAVOR_VEC		35	
+#define UC_FLAVOR64		40	
+#define UC_FLAVOR64_VEC		45	
+#define UC_DUAL			50	
+#define UC_DUAL_VEC		55	
+
+ /* The following are valid mcontext sizes */	
+#define UC_FLAVOR_SIZE ((PPC_THREAD_STATE_COUNT + PPC_EXCEPTION_STATE_COUNT + PPC_FLOAT_STATE_COUNT) * sizeof(int))	
+
+#define UC_FLAVOR_VEC_SIZE ((PPC_THREAD_STATE_COUNT + PPC_EXCEPTION_STATE_COUNT + PPC_FLOAT_STATE_COUNT + PPC_VECTOR_STATE_COUNT) * sizeof(int))	
+
+#define UC_FLAVOR64_SIZE ((PPC_THREAD_STATE64_COUNT + PPC_EXCEPTION_STATE64_COUNT + PPC_FLOAT_STATE_COUNT) * sizeof(int))	
+
+#define UC_FLAVOR64_VEC_SIZE ((PPC_THREAD_STATE64_COUNT + PPC_EXCEPTION_STATE64_COUNT + PPC_FLOAT_STATE_COUNT + PPC_VECTOR_STATE_COUNT) * sizeof(int))	
+#endif
 
 #define UC_SET_ALT_STACK	0x40000000
 #define UC_RESET_ALT_STACK	0x80000000

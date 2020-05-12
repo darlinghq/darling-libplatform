@@ -12,6 +12,7 @@ include_directories(BEFORE
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_SOURCE_DIR}/private
 	${CMAKE_CURRENT_SOURCE_DIR}/internal
+	${CMAKE_CURRENT_SOURCE_DIR}/os/resolver
 )
 
 if (TARGET_x86_64)
@@ -51,40 +52,44 @@ else (TARGET_i386)
 endif (TARGET_i386)
 
 set(platform_sources
-	src/setjmp/generic/sigtramp.c
-	src/setjmp/generic/setjmperr.c
-	src/os/semaphore.c
-	src/os/atomic_up.c
-	src/os/lock.c
-	src/os/lock_wfe.c
-	src/os/lock_up.c
-	src/os/resolver.c
+	src/init.c
+	src/force_libplatform_to_build.c
+	src/atomics/init.c
+	src/atomics/common/MKGetTimeBaseInfo.c
+	src/cachecontrol/generic/cache.c
+	#src/introspection/introspection.c
 	src/os/alloc_once.c
 	src/os/atomic.c
-	src/ucontext/generic/getmcontext.c
-	src/ucontext/generic/makecontext.c
-	src/ucontext/generic/swapcontext.c
-	src/ucontext/generic/setcontext.c
-	src/force_libplatform_to_build.c
-	src/init.c
-	src/cachecontrol/generic/cache.c
-	src/string/generic/memccpy.c
-	src/string/generic/memmove.c
-	src/string/generic/strcmp.c
-	src/string/generic/flsll.c
-	src/string/generic/memcmp.c
-	src/string/generic/strchr.c
-	src/string/generic/ffsll.c
-	src/string/generic/strncmp.c
-	src/string/generic/bzero.c
-	src/string/generic/memset_pattern.c
-	src/string/generic/memchr.c
-	src/atomics/common/MKGetTimeBaseInfo.c
-	src/atomics/init.c
-	src/simple/string_io.c
+	src/os/lock.c
+	src/os/semaphore.c
+	src/setjmp/generic/setjmperr.c
+	src/setjmp/generic/sigaction.c
+	src/setjmp/generic/sigtramp.c
 	src/simple/asl.c
 	src/simple/getenv.c
-	#src/introspection/introspection.c
+	src/simple/string_io.c
+	src/string/generic/bzero.c
+	src/string/generic/ffsll.c
+	src/string/generic/flsll.c
+	src/string/generic/memccpy.c
+	src/string/generic/memchr.c
+	src/string/generic/memcmp.c
+	src/string/generic/memmove.c
+	src/string/generic/memset_pattern.c
+	src/string/generic/strchr.c
+	src/string/generic/strcmp.c
+	src/string/generic/strcpy.c
+	src/string/generic/strlcat.c
+	src/string/generic/strlcpy.c
+	src/string/generic/strlen.c
+	src/string/generic/strncmp.c
+	src/string/generic/strncpy.c
+	src/string/generic/strnlen.c
+	src/string/generic/strstr.c
+	src/ucontext/generic/getmcontext.c
+	src/ucontext/generic/makecontext.c
+	src/ucontext/generic/setcontext.c
+	src/ucontext/generic/swapcontext.c
 )
 
 

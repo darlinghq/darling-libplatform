@@ -57,7 +57,7 @@ ffsll(long long mask)
 #endif
 }
 
-#if VARIANT_DYLD && TARGET_OS_SIMULATOR
+// #if VARIANT_DYLD && TARGET_OS_SIMULATOR
 int
 ffsl(long mask)
 {
@@ -99,5 +99,5 @@ ffs(int mask)
 	return (bit);
 #endif
 }
-#endif
+// #endif
 

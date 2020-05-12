@@ -252,6 +252,7 @@ OS_ATOMIC_FUNCTION_START(OSAtomicDequeue, 2)
  * void  OSAtomicFifoEnqueue( OSFifoQueueHead *list, void *new, size_t offset);
  */
 OS_ATOMIC_FUNCTION_START(OSAtomicFifoEnqueue, 2)
+#if 0 // Linux has not preemption free zone (PFZ), this needs to be rewritten
 	pushq	%rbx
 	xorl	%ebx,%ebx	// clear "preemption pending" flag
 	movq 	_commpage_pfz_base(%rip),%rcx
@@ -262,11 +263,13 @@ OS_ATOMIC_FUNCTION_START(OSAtomicFifoEnqueue, 2)
 	call	_preempt	// call into the kernel to pfz_exit
 1:	
 	popq	%rbx
+#endif
 	ret
 	
 	
 /* void* OSAtomicFifoDequeue( OSFifoQueueHead *list, size_t offset); */
 OS_ATOMIC_FUNCTION_START(OSAtomicFifoDequeue, 2)
+#if 0
 	pushq	%rbx
 	xorl	%ebx,%ebx	// clear "preemption pending" flag
 	movq	_commpage_pfz_base(%rip), %rcx
@@ -278,6 +281,7 @@ OS_ATOMIC_FUNCTION_START(OSAtomicFifoDequeue, 2)
 	call	_preempt	// call into the kernel to pfz_exit
 1:	
 	popq	%rbx
+#endif
 	ret			// ptr to 1st element in Q in %rax
 
 // Local Variables:

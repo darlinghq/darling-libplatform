@@ -51,6 +51,17 @@ else (TARGET_i386)
 	add_darling_object_library(platform_i386 empty.c)
 endif (TARGET_i386)
 
+if (TARGET_ARM64)
+	set(platform_arm64_sources
+		src/cachecontrol/arm64/cache.S
+		src/setjmp/arm64/setjmp.S
+	)
+	add_darling_object_library(platform_arm64 ${platform_arm64_sources})
+	set_target_properties(platform_arm64 PROPERTIES COMPILE_FLAGS "-arch arm64")
+else (TARGET_ARM64)
+	add_darling_object_library(platform_arm64 empty.c)
+endif (TARGET_ARM64)
+
 set(platform_sources
 	src/init.c
 	src/force_libplatform_to_build.c
@@ -92,11 +103,16 @@ set(platform_sources
 	src/ucontext/generic/swapcontext.c
 )
 
+if (TARGET_x86_64 OR TARGET_i386)
+	set(platform_objects $<TARGET_OBJECTS:platform_i386> $<TARGET_OBJECTS:platform_x86_64>)
+elseif (TARGET_ARM64)
+	set(platform_objects $<TARGET_OBJECTS:platform_arm64>)
+endif()
 
 set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_platform.dylib")
 add_circular(platform FAT
 	SOURCES ${platform_sources}
-	OBJECTS $<TARGET_OBJECTS:platform_i386> $<TARGET_OBJECTS:platform_x86_64>
+	OBJECTS ${platform_objects}
 	LINK_FLAGS "-Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases"
 	SIBLINGS system_kernel compiler_rt system_c system_dyld
 	)
@@ -115,6 +131,10 @@ endif (TARGET_i386)
 if (TARGET_x86_64)
 	add_darling_static_library(platform_static64 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_x86_64>)
 	set_target_properties(platform_static64 PROPERTIES COMPILE_OPTIONS "-arch;x86_64;-DVARIANT_STATIC;-fvisibility=hidden")
+	add_dependencies(platform_static64 ranlib x86_64-apple-darwin11-ar lipo)
+elseif (TARGET_ARM64)
+	add_darling_static_library(platform_static64 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_arm64>)
+	set_target_properties(platform_static64 PROPERTIES COMPILE_OPTIONS "-arch;arm64;-DVARIANT_STATIC;-fvisibility=hidden")
 	add_dependencies(platform_static64 ranlib x86_64-apple-darwin11-ar lipo)
 endif (TARGET_x86_64)
 

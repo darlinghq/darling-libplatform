@@ -65,9 +65,7 @@ __libplatform_init(void *future_use __unused, const char *envp[],
     _simple_asl_init(envp, vars);
 #endif
 
-#if !DARLING
 #if !VARIANT_STATIC
     __libkernel_platform_init(&_platform_string_functions);
-#endif
 #endif
 }

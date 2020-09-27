@@ -16,7 +16,7 @@ include_directories(BEFORE
 )
 
 if (TARGET_x86_64)
-	set(platform_x86_64_sources
+	set(platform_64bit_sources
 		src/setjmp/x86_64/_setjmp.S
 		src/setjmp/x86_64/setjmp.S
 		src/setjmp/x86_64/_sigtramp.S
@@ -27,14 +27,22 @@ if (TARGET_x86_64)
 		src/atomics/x86_64/pfz.S
 		src/atomics/x86_64/OSAtomic.S
 	)
-	add_darling_object_library(platform_x86_64 ${platform_x86_64_sources})
-	set_target_properties(platform_x86_64 PROPERTIES COMPILE_FLAGS "-arch x86_64")
-else (TARGET_x86_64)
-	add_darling_object_library(platform_x86_64 empty.c)
-endif (TARGET_x86_64)
+	
+elseif (TARGET_ARM64)
+	set(platform_64bit_sources
+		src/cachecontrol/arm64/cache.S
+		src/setjmp/arm64/setjmp.S
+	)
+else (NO_TARGET_64BIT)
+	add_darling_object_library(platform_64bit empty.c)
+endif ()
+if (BUILD_TARGET_64BIT)
+	add_darling_object_library(platform_64bit ${platform_64bit_sources})
+	set_target_properties(platform_64bit PROPERTIES COMPILE_FLAGS "-arch ${APPLE_ARCH_64BIT}")
+endif (BUILD_TARGET_64BIT)
 
 if (TARGET_i386)
-	set(platform_i386_sources
+	set(platform_32bit_sources
 		src/setjmp/i386/_setjmp.S
 		src/setjmp/i386/setjmp.S
 		src/setjmp/i386/_sigtramp.S
@@ -45,22 +53,13 @@ if (TARGET_i386)
 		src/atomics/i386/OSAtomic.S
 		src/cachecontrol/i386/cache.S
 	)
-	add_darling_object_library(platform_i386 ${platform_i386_sources})
-	set_target_properties(platform_i386 PROPERTIES COMPILE_FLAGS "-arch i386")
-else (TARGET_i386)
-	add_darling_object_library(platform_i386 empty.c)
-endif (TARGET_i386)
-
-if (TARGET_ARM64)
-	set(platform_arm64_sources
-		src/cachecontrol/arm64/cache.S
-		src/setjmp/arm64/setjmp.S
-	)
-	add_darling_object_library(platform_arm64 ${platform_arm64_sources})
-	set_target_properties(platform_arm64 PROPERTIES COMPILE_FLAGS "-arch arm64")
-else (TARGET_ARM64)
-	add_darling_object_library(platform_arm64 empty.c)
-endif (TARGET_ARM64)
+else (NO_TARGET_32BIT)
+	add_darling_object_library(platform_32bit empty.c)
+endif ()
+if (BUILD_TARGET_32BIT)
+	add_darling_object_library(platform_32bit ${platform_32bit_sources})
+	set_target_properties(platform_32bit PROPERTIES COMPILE_FLAGS "-arch ${APPLE_ARCH_32BIT}")
+endif (BUILD_TARGET_32BIT)
 
 set(platform_sources
 	src/init.c
@@ -103,16 +102,11 @@ set(platform_sources
 	src/ucontext/generic/swapcontext.c
 )
 
-if (TARGET_x86_64 OR TARGET_i386)
-	set(platform_objects $<TARGET_OBJECTS:platform_i386> $<TARGET_OBJECTS:platform_x86_64>)
-elseif (TARGET_ARM64)
-	set(platform_objects $<TARGET_OBJECTS:platform_arm64>)
-endif()
 
 set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_platform.dylib")
 add_circular(platform FAT
 	SOURCES ${platform_sources}
-	OBJECTS ${platform_objects}
+	OBJECTS $<TARGET_OBJECTS:platform_32bit> $<TARGET_OBJECTS:platform_64bit>
 	LINK_FLAGS "-Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases"
 	SIBLINGS system_kernel compiler_rt system_c system_dyld
 	)
@@ -122,20 +116,16 @@ set_target_properties(platform PROPERTIES OUTPUT_NAME "system_platform")
 
 #target_link_libraries(platform PRIVATE system_kernel compiler_rt)
 
-if (TARGET_i386)
-	add_darling_static_library(platform_static32 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_i386>)
-	set_target_properties(platform_static32 PROPERTIES COMPILE_FLAGS "-arch i386 -DVARIANT_STATIC -fvisibility=hidden")
-	add_dependencies(platform_static32 ranlib x86_64-apple-darwin11-ar lipo)
-endif (TARGET_i386)
+if (BUILD_TARGET_32BIT)
+	add_darling_static_library(platform_static32 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_32bit>)
+	set_target_properties(platform_static32 PROPERTIES COMPILE_FLAGS "-arch ${APPLE_ARCH_32BIT} -DVARIANT_STATIC -fvisibility=hidden")
+	add_dependencies(platform_static32 ranlib ${APPLE_TARGET_TRIPLET_PRIMARY}-ar lipo)
+endif (BUILD_TARGET_32BIT)
 
-if (TARGET_x86_64)
-	add_darling_static_library(platform_static64 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_x86_64>)
-	set_target_properties(platform_static64 PROPERTIES COMPILE_OPTIONS "-arch;x86_64;-DVARIANT_STATIC;-fvisibility=hidden")
-	add_dependencies(platform_static64 ranlib x86_64-apple-darwin11-ar lipo)
-elseif (TARGET_ARM64)
-	add_darling_static_library(platform_static64 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_arm64>)
-	set_target_properties(platform_static64 PROPERTIES COMPILE_OPTIONS "-arch;arm64;-DVARIANT_STATIC;-fvisibility=hidden")
-	add_dependencies(platform_static64 ranlib x86_64-apple-darwin11-ar lipo)
-endif (TARGET_x86_64)
+if (BUILD_TARGET_64BIT)
+	add_darling_static_library(platform_static64 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_64bit>)
+	set_target_properties(platform_static64 PROPERTIES COMPILE_OPTIONS "-arch;${APPLE_ARCH_64BIT};-DVARIANT_STATIC;-fvisibility=hidden")
+	add_dependencies(platform_static64 ranlib ${APPLE_TARGET_TRIPLET_PRIMARY}-ar lipo)
+endif (BUILD_TARGET_64BIT)
 
 install(TARGETS platform DESTINATION libexec/darling/usr/lib/system)

@@ -26,7 +26,13 @@
 #if __has_include(<CrashReporterClient.h>)
 #include <CrashReporterClient.h>
 
-#if defined(__x86_64__)
+#if defined(DARLING)
+
+#define __os_set_crash_log_cause_and_message(ac, msg) ((void)(ac), (void)(msg))
+#define _os_set_crash_log_message(msg) ((void)(msg))
+#define _os_set_crash_log_message_dynamic(msg) ((void)(msg))
+
+#elif defined(__x86_64__)
 
 #define __os_set_crash_log_cause_and_message(ac, msg) \
 		({ long _ac = (long)(ac); __asm__ ( \

@@ -2,7 +2,7 @@ project(libplatform)
 
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdinc")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdinc -Wno-error=int-conversion")
 # -Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_arch_warnings -Wl,-bind_at_load")
 

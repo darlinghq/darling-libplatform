@@ -44,33 +44,15 @@ extern int __sigreturn(ucontext_t *, int, uintptr_t);
  * Note that the kernel saves/restores all of our register state.
  */
 
-/* On i386, i386/sys/_sigtramp.s defines this. There is no in_sigtramp on arm */
-#if defined(__DYNAMIC__) && defined(__x86_64__)
-OS_NOEXPORT
+/* On i386, i386/sys/_sigtramp.s defines this. */
+#if defined(__DYNAMIC__) && !defined(__i386__)
+OS_NOEXPORT int __in_sigtramp;
 int __in_sigtramp = 0;
 #endif
 
 /* These defn should match the kernel one */
 #define UC_TRAD			1
 #define UC_FLAVOR		30
-#if defined(__ppc__) || defined(__ppc64__)	
-#define UC_TRAD64		20	
-#define UC_TRAD64_VEC		25	
-#define UC_FLAVOR_VEC		35	
-#define UC_FLAVOR64		40	
-#define UC_FLAVOR64_VEC		45	
-#define UC_DUAL			50	
-#define UC_DUAL_VEC		55	
-
- /* The following are valid mcontext sizes */	
-#define UC_FLAVOR_SIZE ((PPC_THREAD_STATE_COUNT + PPC_EXCEPTION_STATE_COUNT + PPC_FLOAT_STATE_COUNT) * sizeof(int))	
-
-#define UC_FLAVOR_VEC_SIZE ((PPC_THREAD_STATE_COUNT + PPC_EXCEPTION_STATE_COUNT + PPC_FLOAT_STATE_COUNT + PPC_VECTOR_STATE_COUNT) * sizeof(int))	
-
-#define UC_FLAVOR64_SIZE ((PPC_THREAD_STATE64_COUNT + PPC_EXCEPTION_STATE64_COUNT + PPC_FLOAT_STATE_COUNT) * sizeof(int))	
-
-#define UC_FLAVOR64_VEC_SIZE ((PPC_THREAD_STATE64_COUNT + PPC_EXCEPTION_STATE64_COUNT + PPC_FLOAT_STATE_COUNT + PPC_VECTOR_STATE_COUNT) * sizeof(int))	
-#endif
 
 #define UC_SET_ALT_STACK	0x40000000
 #define UC_RESET_ALT_STACK	0x80000000
@@ -90,7 +72,7 @@ _sigunaltstack(int set)
 {
         /* sigreturn(uctx, ctxstyle); */
 	/* syscall (SYS_SIGRETURN, uctx, ctxstyle); */
-	__sigreturn (NULL, (set == SS_ONSTACK) ? UC_SET_ALT_STACK : UC_RESET_ALT_STACK, 0);
+	__sigreturn (NULL, (set & SS_ONSTACK) ? UC_SET_ALT_STACK : UC_RESET_ALT_STACK, 0);
 }
 
 /* On these architectures, _sigtramp is implemented in assembly to
@@ -106,21 +88,37 @@ _sigtramp(
 	ucontext_t		*uctx,
 	uintptr_t		token
 ) {
+	__in_sigtramp = sig;
 	int ctxstyle = UC_FLAVOR;
 
-	if (sigstyle == UC_TRAD)
-		sa_handler(sig);
-	else {
+	/* Some variants are not supposed to get the last 2 parameters but it's
+	 * easier to pass them along - especially on arm64 whereby the extra fields
+	 * are probably in caller save registers anyways, thereby making no
+	 * difference to callee if we populate them or not.
+	 *
+	 *
+	 * Moreover, sigaction(2)'s man page implies that the following behavior
+	 * should be supported:
+	 *
+	 *      If the SA_SIGINFO flag is not set, the handler function should match
+	 *      either the ANSI C or traditional BSD prototype and be pointed to by
+	 *      the sa_handler member of struct sigaction.  In practice, FreeBSD
+	 *      always sends the three arguments of the latter and since the ANSI C
+	 *      prototype is a subset, both will work.
+	 *
+	 * See <rdar://problem/51448812> bad siginfo struct sent to SIGCHILD signal
+	 * handler in arm64 process
+	 */
 #if TARGET_OS_WATCH
-		// <rdar://problem/22016014>
-		sa_sigaction(sig, sinfo, NULL);
+	// <rdar://problem/22016014>
+	sa_sigaction(sig, sinfo, NULL);
 #else
-		sa_sigaction(sig, sinfo, uctx);
+	sa_sigaction(sig, sinfo, uctx);
 #endif
-	}
 
-        /* sigreturn(uctx, ctxstyle); */
+	/* sigreturn(uctx, ctxstyle); */
 	/* syscall (SYS_SIGRETURN, uctx, ctxstyle); */
+	__in_sigtramp = 0;
 	__sigreturn (uctx, ctxstyle, token);
 	__builtin_trap(); /* __sigreturn returning is a fatal error */
 }

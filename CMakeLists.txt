@@ -30,6 +30,9 @@ if (TARGET_x86_64 OR TARGET_ARM64)
 		)
 	elseif (TARGET_ARM64)
 		set(platform_64bit_sources
+			src/ucontext/arm64/_ctx_start.S
+			src/ucontext/arm64/_setcontext.S
+			src/ucontext/arm64/getcontext.S
 			src/cachecontrol/arm64/cache.S
 			src/setjmp/arm64/setjmp.S
 		)

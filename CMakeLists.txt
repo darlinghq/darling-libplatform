@@ -32,6 +32,9 @@ if (TARGET_x86_64 OR TARGET_ARM64)
 		set(platform_64bit_sources
 			src/cachecontrol/arm64/cache.S
 			src/setjmp/arm64/setjmp.S
+			src/ucontext/arm64/_ctx_start.S
+			src/ucontext/arm64/getcontext.S
+			src/ucontext/arm64/_setcontext.S
 		)
 	endif ()
 	add_darling_object_library(platform_64bit ${platform_64bit_sources})

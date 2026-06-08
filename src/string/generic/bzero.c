@@ -60,11 +60,13 @@ memset(void *b, int c, size_t len) {
 
 #if !_PLATFORM_OPTIMIZED_BZERO
 
+#if !defined(__x86_64__)
 void
 _platform_bzero(void *s, size_t n)
 {
 	_platform_memset(s, 0, n);
 }
+#endif
 
 #if VARIANT_STATIC
 void

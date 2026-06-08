@@ -2,6 +2,8 @@ project(libplatform)
 
 cmake_minimum_required(VERSION 3.13)
 
+include(darling_exe)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdinc -Wno-error=int-conversion")
 # -Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_arch_warnings -Wl,-bind_at_load")
@@ -27,6 +29,7 @@ if (TARGET_x86_64 OR TARGET_ARM64)
 			src/cachecontrol/x86_64/cache.S
 			src/atomics/x86_64/pfz.S
 			src/atomics/x86_64/OSAtomic.S
+			src/string/x86_64/bzero.S
 		)
 	elseif (TARGET_ARM64)
 		set(platform_64bit_sources
@@ -113,6 +116,17 @@ set_target_properties(platform PROPERTIES OUTPUT_NAME "system_platform")
 #set_property(TARGET platform APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases")
 
 #target_link_libraries(platform PRIVATE system_kernel compiler_rt)
+
+add_darling_executable(darling_bzero_return_regress
+	tests/darling_bzero_return_regress.c
+)
+
+if (BUILD_TESTING AND CMAKE_CROSSCOMPILING_EMULATOR)
+	add_test(
+		NAME darling_bzero_return_regress
+		COMMAND darling_bzero_return_regress
+	)
+endif ()
 
 if (BUILD_TARGET_32BIT)
 	add_darling_static_library(platform_static32 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_32bit>)

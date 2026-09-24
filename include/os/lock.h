@@ -159,7 +159,7 @@ void os_unfair_lock_unlock(os_unfair_lock_t lock);
  */
 OS_UNFAIR_LOCK_AVAILABILITY
 OS_EXPORT OS_NOTHROW OS_NONNULL_ALL
-void os_unfair_lock_assert_owner(os_unfair_lock_t lock);
+void os_unfair_lock_assert_owner(const os_unfair_lock *lock);
 
 /*!
  * @function os_unfair_lock_assert_not_owner
@@ -180,7 +180,7 @@ void os_unfair_lock_assert_owner(os_unfair_lock_t lock);
  */
 OS_UNFAIR_LOCK_AVAILABILITY
 OS_EXPORT OS_NOTHROW OS_NONNULL_ALL
-void os_unfair_lock_assert_not_owner(os_unfair_lock_t lock);
+void os_unfair_lock_assert_not_owner(const os_unfair_lock *lock);
 
 __END_DECLS
 

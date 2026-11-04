@@ -93,6 +93,7 @@ set(platform_sources
 	src/string/generic/memcmp.c
 	src/string/generic/memmove.c
 	src/string/generic/memset_pattern.c
+	src/string/arm64/static.c
 	src/string/generic/strchr.c
 	src/string/generic/strcmp.c
 	src/string/generic/strcpy.c

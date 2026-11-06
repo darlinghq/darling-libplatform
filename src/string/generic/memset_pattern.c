@@ -23,20 +23,45 @@
 
 #include <platform/string.h>
 
+#if !_PLATFORM_OPTIMIZED_MEMSET_PATTERN4 || !_PLATFORM_OPTIMIZED_MEMSET_PATTERN8 || !_PLATFORM_OPTIMIZED_MEMSET_PATTERN16
+
+/*
+ * Copy the pattern once, then repeatedly double the filled part of the
+ * buffer. This takes O(log(len / size)) memmove calls instead of one per
+ * pattern repetition, and the pattern is read only before the buffer is
+ * written, so a pattern that lies inside the buffer is still used as it was
+ * on entry.
+ */
+static void
+_platform_memset_pattern_fill(void *b, const void *pattern, size_t len, size_t size)
+{
+	unsigned char saved[16];
+	unsigned char *dst = (unsigned char *)b;
+	size_t filled;
+
+	if (len == 0) {
+		return;
+	}
+
+	_platform_memmove(saved, pattern, size);
+	filled = (len < size) ? len : size;
+	_platform_memmove(dst, saved, filled);
+
+	while (filled < len) {
+		size_t chunk = (filled < len - filled) ? filled : len - filled;
+		_platform_memmove(dst + filled, dst, chunk);
+		filled += chunk;
+	}
+}
+
+#endif
+
 #if !_PLATFORM_OPTIMIZED_MEMSET_PATTERN4
 
 void
 _platform_memset_pattern4(void *b, const void *pattern4, size_t len)
 {
-	char * start = (char *)b;
-	char * p = (char *)b;
-	while ((start + len) - p >= 4) {
-		_platform_memmove(p, pattern4, 4);
-		p += 4;
-	}
-	if ((start + len) - p != 0) {
-		_platform_memmove(p, pattern4, (start + len) - p);
-	}
+	_platform_memset_pattern_fill(b, pattern4, len, 4);
 }
 
 #if VARIANT_STATIC
@@ -55,15 +80,7 @@ memset_pattern4(void *b, const void *pattern4, size_t len)
 void
 _platform_memset_pattern8(void *b, const void *pattern8, size_t len)
 {
-	char * start = (char *)b;
-	char * p = (char *)b;
-	while ((start + len) - p >= 8) {
-		_platform_memmove(p, pattern8, 8);
-		p += 8;
-	}
-	if ((start + len) - p != 0) {
-		_platform_memmove(p, pattern8, (start + len) - p);
-	}
+	_platform_memset_pattern_fill(b, pattern8, len, 8);
 }
 
 #if VARIANT_STATIC
@@ -82,15 +99,7 @@ memset_pattern8(void *b, const void *pattern8, size_t len)
 void
 _platform_memset_pattern16(void *b, const void *pattern16, size_t len)
 {
-	char * start = (char *)b;
-	char * p = (char *)b;
-	while ((start + len) - p >= 16) {
-		_platform_memmove(p, pattern16, 16);
-		p += 16;
-	}
-	if ((start + len) - p != 0) {
-		_platform_memmove(p, pattern16, (start + len) - p);
-	}
+	_platform_memset_pattern_fill(b, pattern16, len, 16);
 }
 
 #if VARIANT_STATIC

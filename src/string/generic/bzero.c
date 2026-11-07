@@ -45,26 +45,42 @@ memset(void *b, int c, size_t len)
  * lets the last store overlap the ones before it. Only [b, b+len) is
  * written. The caller guarantees len >= PLATFORM_MEM_VECTOR.
  */
-__attribute__((target("avx2"), visibility("hidden")))
+__attribute__((visibility("hidden")))
 void *
 _platform_memset_avx2(void *b, int c, size_t len)
 {
-	const __m256i pattern = _mm256_set1_epi8((char)c);
-	unsigned char *destination = (unsigned char *)b;
-	size_t filled = 0;
+	/*
+	 * Written out in assembly so that its speed does not depend on the
+	 * optimisation level the library is built with. 64 bytes per pass,
+	 * then at most one more 32-byte store, then a 32-byte store that ends
+	 * at b+len and may overlap the stores before it.
+	 */
+	unsigned char *to = (unsigned char *)b;
+	unsigned char *last = to + len - PLATFORM_MEM_VECTOR;
+	size_t left = len;
 
-	while (len - filled >= PLATFORM_MEM_STEP) {
-		_mm256_storeu_si256((__m256i *)(void *)(destination + filled), pattern);
-		_mm256_storeu_si256((__m256i *)(void *)(destination + filled + PLATFORM_MEM_VECTOR), pattern);
-		filled += PLATFORM_MEM_STEP;
-	}
-	while (len - filled >= PLATFORM_MEM_VECTOR) {
-		_mm256_storeu_si256((__m256i *)(void *)(destination + filled), pattern);
-		filled += PLATFORM_MEM_VECTOR;
-	}
-	if (filled != len)
-		_mm256_storeu_si256((__m256i *)(void *)(destination + len - PLATFORM_MEM_VECTOR), pattern);
-	_mm256_zeroupper();
+	__asm__ volatile(
+		"vmovd %k[value], %%xmm0\n\t"
+		"vpbroadcastb %%xmm0, %%ymm0\n\t"
+		"cmpq $64, %[left]\n\t"
+		"jb 2f\n"
+		"1:\n\t"
+		"vmovdqu %%ymm0, (%[to])\n\t"
+		"vmovdqu %%ymm0, 32(%[to])\n\t"
+		"addq $64, %[to]\n\t"
+		"subq $64, %[left]\n\t"
+		"cmpq $64, %[left]\n\t"
+		"jae 1b\n"
+		"2:\n\t"
+		"cmpq $32, %[left]\n\t"
+		"jb 3f\n\t"
+		"vmovdqu %%ymm0, (%[to])\n"
+		"3:\n\t"
+		"vmovdqu %%ymm0, (%[last])\n\t"
+		"vzeroupper"
+		: [to] "+r"(to), [left] "+r"(left)
+		: [value] "r"(c), [last] "r"(last)
+		: "xmm0", "memory", "cc");
 	return (b);
 }
 #endif /* __x86_64__ */
@@ -74,6 +90,10 @@ _platform_memset(void *b, int c, size_t len) {
 	unsigned char pattern[4];
 
 #if defined(__x86_64__)
+	if (len >= PLATFORM_MEM_STRING_THRESHOLD && platform_has_fast_strings()) {
+		platform_fill_rep_stosb(b, (unsigned char)c, len);
+		return b;
+	}
 	if (platform_has_avx2()) {
 		if (len >= PLATFORM_MEM_VECTOR)
 			return _platform_memset_avx2(b, c, len);

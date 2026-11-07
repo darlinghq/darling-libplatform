@@ -39,11 +39,51 @@
 #if defined(__x86_64__)
 #include <platform/string_avx2.h>
 
+/* Shorter ranges are scanned faster byte by byte than set up for the
+   vector scan. */
+#define PLATFORM_MEMCHR_SHORT	12
+
 /* The bits of the first count bytes of a 32-byte block, count <= 32. */
 static inline unsigned
 platform_memchr_low_bytes(size_t count)
 {
 	return (count >= PLATFORM_MEM_VECTOR ? 0xffffffffu : (1u << count) - 1);
+}
+
+/*
+ * Compares the 32-byte aligned blocks starting at *block with c, at most
+ * blocks of them (blocks > 0), and stops at the first block holding c.
+ * Returns that block's match bits, with *block pointing at it, or 0 with
+ * *block pointing at the last block compared. Written out in assembly so
+ * that its speed does not depend on the optimisation level the library is
+ * built with.
+ */
+static inline unsigned
+platform_memchr_blocks(const unsigned char **block, int c, size_t blocks)
+{
+	const unsigned char *p = *block;
+	unsigned equal;
+
+	__asm__ volatile(
+		"vmovd %k[value], %%xmm0\n\t"
+		"vpbroadcastb %%xmm0, %%ymm0\n\t"
+		"jmp 2f\n"
+		"1:\n\t"
+		"addq $32, %[p]\n"
+		"2:\n\t"
+		"vpcmpeqb (%[p]), %%ymm0, %%ymm1\n\t"
+		"vpmovmskb %%ymm1, %[equal]\n\t"
+		"testl %[equal], %[equal]\n\t"
+		"jnz 3f\n\t"
+		"decq %[blocks]\n\t"
+		"jnz 1b\n"
+		"3:\n\t"
+		"vzeroupper"
+		: [p] "+r"(p), [blocks] "+r"(blocks), [equal] "=&r"(equal)
+		: [value] "r"(c)
+		: "xmm0", "xmm1", "memory", "cc");
+	*block = p;
+	return (equal);
 }
 
 /*
@@ -56,11 +96,10 @@ platform_memchr_low_bytes(size_t count)
  * before s or after s+n are masked off, and blocks are scanned in address
  * order, so the lowest remaining bit is the first match.
  */
-__attribute__((target("avx2"), visibility("hidden")))
+__attribute__((visibility("hidden")))
 void *
 _platform_memchr_avx2(const void *s, int c, size_t n)
 {
-	const __m256i needle = _mm256_set1_epi8((char)c);
 	const size_t offset = (uintptr_t)s & (PLATFORM_MEM_VECTOR - 1);
 	const unsigned char *p = (const unsigned char *)s - offset;
 	size_t remaining;
@@ -72,26 +111,34 @@ _platform_memchr_avx2(const void *s, int c, size_t n)
 		n = SIZE_MAX - PLATFORM_MEM_VECTOR;
 	remaining = n + offset;
 
-	equal = (unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(
-		_mm256_load_si256((const __m256i *)(const void *)p), needle));
-	equal &= 0xffffffffu << offset;
+	/* The first block, without the bytes before s. */
+	equal = platform_memchr_blocks(&p, c, 1) & (0xffffffffu << offset);
+	if (remaining <= PLATFORM_MEM_VECTOR)
+		goto last;
+	if (equal != 0)
+		goto found;
+	p += PLATFORM_MEM_VECTOR;
+	remaining -= PLATFORM_MEM_VECTOR;
 
-	while (remaining > PLATFORM_MEM_VECTOR) {
+	/* The blocks before the last one are whole. */
+	if (remaining > PLATFORM_MEM_VECTOR) {
+		const size_t whole = (remaining - 1) / PLATFORM_MEM_VECTOR;
+		const unsigned char *start = p;
+
+		equal = platform_memchr_blocks(&p, c, whole);
 		if (equal != 0)
 			goto found;
 		p += PLATFORM_MEM_VECTOR;
-		remaining -= PLATFORM_MEM_VECTOR;
-		equal = (unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(
-			_mm256_load_si256((const __m256i *)(const void *)p), needle));
+		remaining -= (size_t)(p - start);
 	}
-	equal &= platform_memchr_low_bytes(remaining);
-	if (equal != 0)
-		goto found;
-	_mm256_zeroupper();
-	return (NULL);
 
+	/* The last block, without the bytes after s+n. */
+	equal = platform_memchr_blocks(&p, c, 1);
+last:
+	equal &= platform_memchr_low_bytes(remaining);
+	if (equal == 0)
+		return (NULL);
 found:
-	_mm256_zeroupper();
 	return ((void *)(p + (unsigned)__builtin_ctz(equal)));
 }
 #endif
@@ -103,7 +150,7 @@ _platform_memchr(const void *s, int c, size_t n)
 		const unsigned char *p = s;
 
 #if defined(__x86_64__)
-		if (n >= PLATFORM_MEM_VECTOR && platform_has_avx2())
+		if (n >= PLATFORM_MEMCHR_SHORT && platform_has_avx2())
 			return (_platform_memchr_avx2(s, c, n));
 #endif
 		do {

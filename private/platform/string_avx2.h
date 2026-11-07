@@ -31,6 +31,11 @@
  * capability word (the same word OSAtomicFifo.c reads), so a CPU without
  * AVX2, or without OS support for the AVX state, keeps the portable loops.
  * A capability word that is still zero also selects the portable loops.
+ * Large non-overlapping copies and large fills use REP MOVSB/STOSB when the
+ * CPU reports enhanced REP string support, with or without AVX2.
+ *
+ * The library may be built without optimisation, which turns vector
+ * intrinsics into slow stack traffic, so the hot loops are inline assembly.
  *
  * None of these routines calls out of this library, so they stay
  * async-signal safe.
@@ -81,6 +86,39 @@ static inline int
 platform_has_avx2(void)
 {
 	return ((platform_cpu_capabilities() & kHasAVX2_0) != 0);
+}
+
+/*
+ * With enhanced REP MOVSB/STOSB (kHasENFSTRG, CPUID leaf 7 EBX bit 9), the
+ * string instructions move whole cache lines internally and beat a vector
+ * loop on large blocks. Below this size their start-up cost dominates.
+ */
+#define PLATFORM_MEM_STRING_THRESHOLD	2048
+
+static inline int
+platform_has_fast_strings(void)
+{
+	return ((platform_cpu_capabilities() & kHasENFSTRG) != 0);
+}
+
+/* Copies length bytes upwards; the caller ensures the blocks do not
+   overlap. The direction flag is clear on function entry (System V ABI). */
+static inline void
+platform_copy_rep_movsb(void *destination, const void *source, size_t length)
+{
+	__asm__ volatile("rep movsb"
+	                 : "+D"(destination), "+S"(source), "+c"(length)
+	                 :
+	                 : "memory");
+}
+
+static inline void
+platform_fill_rep_stosb(void *destination, unsigned char value, size_t length)
+{
+	__asm__ volatile("rep stosb"
+	                 : "+D"(destination), "+c"(length)
+	                 : "a"(value)
+	                 : "memory");
 }
 
 typedef unsigned long long __attribute__((aligned(1), may_alias)) platform_u64u;

@@ -130,3 +130,13 @@ if (BUILD_TARGET_64BIT)
 endif (BUILD_TARGET_64BIT)
 
 install(TARGETS platform DESTINATION libexec/darling/usr/lib/system)
+
+# These files implement memset, memmove, memcmp and memchr themselves.
+# Without -fno-builtin the compiler may recognise their loops as those
+# very functions and turn them into calls to themselves.
+set_source_files_properties(
+	src/string/generic/bzero.c
+	src/string/generic/memchr.c
+	src/string/generic/memcmp.c
+	src/string/generic/memmove.c
+	PROPERTIES COMPILE_OPTIONS "-fno-builtin")

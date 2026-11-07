@@ -34,6 +34,10 @@
 
 #if !_PLATFORM_OPTIMIZED_MEMMOVE
 
+#if defined(__x86_64__)
+#include <platform/string_avx2.h>
+#endif
+
 #include <sys/types.h>
 
 /*
@@ -44,6 +48,83 @@ typedef	long word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define	wmask	(wsize - 1)
+
+#if defined(__x86_64__)
+
+/*
+ * A forward copy moves low to high and reads each 32-byte block before it
+ * writes it, so an overlapping copy stays correct: the block written at
+ * offset i ends below the first source byte not read yet. The block that does
+ * not fill a vector is finished with the 8, 4, 2 and 1 byte moves of
+ * platform_copy_short, which read every byte before they write any of it.
+ */
+__attribute__((target("avx2"), visibility("hidden")))
+static void
+platform_copy_forward_avx2(unsigned char *destination, const unsigned char *source, size_t length)
+{
+	size_t copied = 0;
+
+	while (length - copied >= PLATFORM_MEM_STEP) {
+		const __m256i first = _mm256_loadu_si256((const __m256i *)(const void *)(source + copied));
+		const __m256i second = _mm256_loadu_si256((const __m256i *)(const void *)(source + copied + PLATFORM_MEM_VECTOR));
+
+		_mm256_storeu_si256((__m256i *)(void *)(destination + copied), first);
+		_mm256_storeu_si256((__m256i *)(void *)(destination + copied + PLATFORM_MEM_VECTOR), second);
+		copied += PLATFORM_MEM_STEP;
+	}
+	while (length - copied >= PLATFORM_MEM_VECTOR) {
+		const __m256i block = _mm256_loadu_si256((const __m256i *)(const void *)(source + copied));
+
+		_mm256_storeu_si256((__m256i *)(void *)(destination + copied), block);
+		copied += PLATFORM_MEM_VECTOR;
+	}
+	platform_copy_short(destination + copied, source + copied, length - copied);
+}
+
+/* The same, high to low, for a destination above the source. */
+__attribute__((target("avx2"), visibility("hidden")))
+static void
+platform_copy_backward_avx2(unsigned char *destination, const unsigned char *source, size_t length)
+{
+	size_t copied = 0;
+
+	while (length - copied >= PLATFORM_MEM_STEP) {
+		const __m256i first = _mm256_loadu_si256((const __m256i *)(const void *)(source + length - copied - PLATFORM_MEM_STEP));
+		const __m256i second = _mm256_loadu_si256((const __m256i *)(const void *)(source + length - copied - PLATFORM_MEM_VECTOR));
+
+		copied += PLATFORM_MEM_STEP;
+		_mm256_storeu_si256((__m256i *)(void *)(destination + length - copied), first);
+		_mm256_storeu_si256((__m256i *)(void *)(destination + length - copied + PLATFORM_MEM_VECTOR), second);
+	}
+	while (length - copied >= PLATFORM_MEM_VECTOR) {
+		__m256i block;
+
+		copied += PLATFORM_MEM_VECTOR;
+		block = _mm256_loadu_si256((const __m256i *)(const void *)(source + length - copied));
+		_mm256_storeu_si256((__m256i *)(void *)(destination + length - copied), block);
+	}
+	platform_copy_short(destination, source, length - copied);
+}
+
+__attribute__((target("avx2"), visibility("hidden")))
+void *
+_platform_memmove_avx2(void *dst, const void *src, size_t length)
+{
+	unsigned char *destination = (unsigned char *)dst;
+	const unsigned char *source = (const unsigned char *)src;
+	const unsigned long destinationAddress = (unsigned long)destination;
+	const unsigned long sourceAddress = (unsigned long)source;
+
+	if (destinationAddress < sourceAddress) {
+		platform_copy_forward_avx2(destination, source, length);
+	} else if (destinationAddress > sourceAddress) {
+		platform_copy_backward_avx2(destination, source, length);
+	}
+	_mm256_zeroupper();
+	return (dst);
+}
+
+#endif /* __x86_64__ */
 
 /*
  * Copy a block of memory, handling overlap.
@@ -57,6 +138,11 @@ _platform_memmove(void *dst0, const void *src0, size_t length)
 	char *dst = dst0;
 	const char *src = src0;
 	size_t t;
+
+#if defined(__x86_64__)
+	if (length >= PLATFORM_MEM_VECTOR && platform_has_avx2())
+		return (_platform_memmove_avx2(dst0, src0, length));
+#endif
 
 	if (length == 0 || dst == src)		/* nothing to do */
 		goto done;

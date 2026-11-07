@@ -23,6 +23,10 @@
 
 #include <platform/string.h>
 
+#if defined(__x86_64__)
+#include <platform/string_avx2.h>
+#endif
+
 #if !VARIANT_STATIC
 // to satisfy compiler-generated memset inside libplatform (e.g. makecontext)
 __attribute__((visibility("hidden")))
@@ -35,9 +39,50 @@ memset(void *b, int c, size_t len)
 
 #if !_PLATFORM_OPTIMIZED_MEMSET
 
+#if defined(__x86_64__)
+/*
+ * A fill has no overlap to preserve, so this writes 32 bytes at a time and
+ * lets the last store overlap the ones before it. Only [b, b+len) is
+ * written. The caller guarantees len >= PLATFORM_MEM_VECTOR.
+ */
+__attribute__((target("avx2"), visibility("hidden")))
+void *
+_platform_memset_avx2(void *b, int c, size_t len)
+{
+	const __m256i pattern = _mm256_set1_epi8((char)c);
+	unsigned char *destination = (unsigned char *)b;
+	size_t filled = 0;
+
+	while (len - filled >= PLATFORM_MEM_STEP) {
+		_mm256_storeu_si256((__m256i *)(void *)(destination + filled), pattern);
+		_mm256_storeu_si256((__m256i *)(void *)(destination + filled + PLATFORM_MEM_VECTOR), pattern);
+		filled += PLATFORM_MEM_STEP;
+	}
+	while (len - filled >= PLATFORM_MEM_VECTOR) {
+		_mm256_storeu_si256((__m256i *)(void *)(destination + filled), pattern);
+		filled += PLATFORM_MEM_VECTOR;
+	}
+	if (filled != len)
+		_mm256_storeu_si256((__m256i *)(void *)(destination + len - PLATFORM_MEM_VECTOR), pattern);
+	_mm256_zeroupper();
+	return (b);
+}
+#endif /* __x86_64__ */
+
 void *
 _platform_memset(void *b, int c, size_t len) {
 	unsigned char pattern[4];
+
+#if defined(__x86_64__)
+	if (platform_has_avx2()) {
+		if (len >= PLATFORM_MEM_VECTOR)
+			return _platform_memset_avx2(b, c, len);
+		/* The doubling fill below costs two memmove calls per call; a
+		   short fill writes the bytes directly instead. */
+		platform_fill_short(b, (unsigned char)c, len);
+		return b;
+	}
+#endif
 
 	pattern[0] = (unsigned char)c;
 	pattern[1] = (unsigned char)c;

@@ -1,10 +1,11 @@
 /*
- * Preserve the effective Darwin ___bzero return-register contract.
- *
- * LLVM may lower a value-producing memset(ptr, 0, len) to ___bzero on Darwin
- * even though bzero is declared void. Keep the original destination in RAX at
- * the actual return instruction so compiler-generated C epilogues cannot
- * clobber it.
+ * QUIRK: on x86_64, bzero() and __bzero() return with the destination
+ * pointer in RAX, although they are declared void. Not documented.
+ * Evidence: black-box observation on macOS 27.0.1 (x86_64 under Rosetta,
+ * tier 2): RAX holds the destination after both calls. The original
+ * report was a Perl 5.28 build whose perl_alloc() used RAX after a
+ * __bzero call; clang 21 was not seen emitting such code.
+ * Test: darling_bzero_return_regress.c.
  */
 
 	.text

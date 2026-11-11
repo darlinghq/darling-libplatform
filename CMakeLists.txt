@@ -27,6 +27,7 @@ if (TARGET_x86_64 OR TARGET_ARM64)
 			src/cachecontrol/x86_64/cache.S
 			src/atomics/x86_64/pfz.S
 			src/atomics/x86_64/OSAtomic.S
+			src/string/x86_64/bzero.S
 		)
 	elseif (TARGET_ARM64)
 		set(platform_64bit_sources

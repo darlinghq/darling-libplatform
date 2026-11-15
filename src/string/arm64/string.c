@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Darling Team
+ * Copyright (C) 2026 Darling Developers
  *
  * memmove, memset, memset_pattern4/8/16 and bzero for arm64.
  *
@@ -18,6 +18,7 @@
 #if defined(__arm64__)
 
 typedef uint64_t __attribute__((aligned(1), may_alias)) unaligned64;
+typedef uint32_t __attribute__((aligned(1), may_alias)) unaligned32;
 
 #define LOAD(p) (*(const unaligned64 *)(p))
 #define STORE(p, v) (*(unaligned64 *)(p) = (v))
@@ -120,7 +121,7 @@ _platform_bzero(void *s, size_t n)
 void
 _platform_memset_pattern4(void *b, const void *pattern4, size_t len)
 {
-	uint64_t v = *(const uint32_t __attribute__((aligned(1), may_alias)) *)pattern4;
+	uint64_t v = *(const unaligned32 *)pattern4;
 	v |= v << 32;
 	fill16(b, v, v, len);
 }

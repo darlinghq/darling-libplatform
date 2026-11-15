@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Darling Team
+ * Copyright (C) 2026 Darling Developers
  *
  * The plain names for the static library (dyld links it), as the generic
  * versions give them in theirs. src/string/arm64/string.c is built into

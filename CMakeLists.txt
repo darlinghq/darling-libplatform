@@ -36,7 +36,11 @@ if (TARGET_x86_64 OR TARGET_ARM64)
 			src/ucontext/arm64/_ctx_start.S
 			src/ucontext/arm64/getcontext.S
 			src/ucontext/arm64/_setcontext.S
+			src/string/arm64/string.c
 		)
+		# Optimized even when the tree isn't, and without builtins: its loops
+		# must not turn into calls to themselves.
+		set_source_files_properties(src/string/arm64/string.c PROPERTIES COMPILE_OPTIONS "-O2;-fno-builtin;-ffreestanding")
 	endif ()
 	add_darling_object_library(platform_64bit ${platform_64bit_sources})
 	set_target_properties(platform_64bit PROPERTIES COMPILE_FLAGS "-arch ${APPLE_ARCH_64BIT}")
@@ -89,6 +93,7 @@ set(platform_sources
 	src/string/generic/memcmp.c
 	src/string/generic/memmove.c
 	src/string/generic/memset_pattern.c
+	src/string/arm64/static.c
 	src/string/generic/strchr.c
 	src/string/generic/strcmp.c
 	src/string/generic/strcpy.c

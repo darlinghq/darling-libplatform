@@ -26,29 +26,40 @@
 #include <machine/cpu_capabilities.h>
 
 
-#define MMU_I_CLINE	6		// cache line size as 1<<MMU_I_CLINE (64)
-
 /* void sys_icache_invalidate(void *start, size_t length) */
 .globl	_sys_icache_invalidate
 .p2align	2
 _sys_icache_invalidate:
-	// see InvalidatePoU_IcacheRegion() in xnu/osfmk/arm64/caches_asm.s
-	cbz		x1, 2f							// length > 0 ?
-	and		x9, x0, #~((1<<MMU_I_CLINE)-1)	// cacheline align address
-	and		x10, x0, #((1<<MMU_I_CLINE)-1)	// extend length by alignment
-	add		x10, x1, x10
-	sub		x10, x10, #1
-	mov		x11, #-1
-	eor		x10, x11, x10, lsr #MMU_I_CLINE	// compute cacheline counter
-	dsb		ish
+	// Apple's cores have coherent caches, so XNU only invalidates the
+	// icache. Darling also runs on cores that don't (Cortex-A72 in a
+	// Raspberry Pi 4): clean the dcache to the point of unification first,
+	// as Linux's __clear_cache does, with line sizes from CTR_EL0.
+	cbz		x1, 3f							// length > 0 ?
+	mrs		x3, ctr_el0
+	add		x1, x0, x1						// end address
+	mov		x5, #4
+	ubfx	x4, x3, #16, #4					// DminLine, log2 of words
+	lsl		x4, x5, x4						// dcache line size
+	sub		x6, x4, #1
+	bic		x2, x0, x6
 1:
-	ic		ivau, x9						// invalidate icache line
-	add		x9, x9, #1<<MMU_I_CLINE			// next cacheline address
-	adds	x10, x10, #1					// decrement cacheline counter
-	b.ne	1b
+	dc		cvau, x2						// clean dcache line to PoU
+	add		x2, x2, x4
+	cmp		x2, x1
+	b.lo	1b
+	dsb		ish
+	and		x4, x3, #0xf					// IminLine, log2 of words
+	lsl		x4, x5, x4						// icache line size
+	sub		x6, x4, #1
+	bic		x2, x0, x6
+2:
+	ic		ivau, x2						// invalidate icache line
+	add		x2, x2, x4
+	cmp		x2, x1
+	b.lo	2b
 	dsb		ish
 	isb
-2:
+3:
 	ret
 
 /* void sys_dcache_flush(void *start, size_t length) */

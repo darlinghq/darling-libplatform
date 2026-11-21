@@ -15,9 +15,12 @@ include_directories(BEFORE
 	${CMAKE_CURRENT_SOURCE_DIR}/os/resolver
 )
 
-if (TARGET_x86_64 OR TARGET_ARM64)
-	if (TARGET_x86_64)
-		set(platform_64bit_sources
+# The assembly differs per architecture: one object library per slice, platform_<arch>, compiled
+# for that slice only. They feed the fat libsystem_platform and the per-slice static archives.
+set(platform_arch_objects "")
+foreach (arch IN LISTS DARLING_ARCHS)
+	if (arch STREQUAL "x86_64")
+		set(platform_arch_sources
 			src/setjmp/x86_64/_setjmp.S
 			src/setjmp/x86_64/setjmp.S
 			src/setjmp/x86_64/_sigtramp.S
@@ -29,8 +32,8 @@ if (TARGET_x86_64 OR TARGET_ARM64)
 			src/atomics/x86_64/OSAtomic.S
 			src/string/x86_64/bzero.S
 		)
-	elseif (TARGET_ARM64)
-		set(platform_64bit_sources
+	elseif (arch STREQUAL "arm64")
+		set(platform_arch_sources
 			src/cachecontrol/arm64/cache.S
 			src/setjmp/arm64/setjmp.S
 			src/ucontext/arm64/_ctx_start.S
@@ -41,16 +44,8 @@ if (TARGET_x86_64 OR TARGET_ARM64)
 		# Optimized even when the tree isn't, and without builtins: its loops
 		# must not turn into calls to themselves.
 		set_source_files_properties(src/string/arm64/string.c PROPERTIES COMPILE_OPTIONS "-O2;-fno-builtin;-ffreestanding")
-	endif ()
-	add_darling_object_library(platform_64bit ${platform_64bit_sources})
-	set_target_properties(platform_64bit PROPERTIES COMPILE_FLAGS "-arch ${APPLE_ARCH_64BIT}")
-else (NO_ARCH_64BIT_SPECIFIC_CODE)
-	add_darling_object_library(platform_64bit empty.c)
-endif ()
-
-if (TARGET_i386)
-	if (TARGET_i386)
-		set(platform_32bit_sources
+	elseif (arch STREQUAL "i386")
+		set(platform_arch_sources
 			src/setjmp/i386/_setjmp.S
 			src/setjmp/i386/setjmp.S
 			src/setjmp/i386/_sigtramp.S
@@ -61,12 +56,12 @@ if (TARGET_i386)
 			src/atomics/i386/OSAtomic.S
 			src/cachecontrol/i386/cache.S
 		)
+	else ()
+		message(FATAL_ERROR "libplatform: no sources for the ${arch} slice")
 	endif ()
-	add_darling_object_library(platform_32bit ${platform_32bit_sources})
-	set_target_properties(platform_32bit PROPERTIES COMPILE_FLAGS "-arch ${APPLE_ARCH_32BIT}")
-else (NO_ARCH_32BIT_SPECIFIC_CODE)
-	add_darling_object_library(platform_32bit empty.c)
-endif ()
+	add_darling_object_library(platform_${arch} ARCHS ${arch} SOURCES ${platform_arch_sources})
+	list(APPEND platform_arch_objects $<TARGET_OBJECTS:platform_${arch}>)
+endforeach ()
 
 set(platform_sources
 	src/init.c
@@ -113,7 +108,7 @@ set(platform_sources
 set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_platform.dylib")
 add_circular(platform FAT
 	SOURCES ${platform_sources}
-	OBJECTS $<TARGET_OBJECTS:platform_32bit> $<TARGET_OBJECTS:platform_64bit>
+	OBJECTS ${platform_arch_objects}
 	LINK_FLAGS "-Wl,-alias_list,${CMAKE_CURRENT_SOURCE_DIR}/xcodeconfig/libplatform.aliases"
 	SIBLINGS system_kernel compiler_rt system_c system_dyld
 	)
@@ -123,17 +118,15 @@ set_target_properties(platform PROPERTIES OUTPUT_NAME "system_platform")
 
 #target_link_libraries(platform PRIVATE system_kernel compiler_rt)
 
-if (BUILD_TARGET_32BIT)
-	add_darling_static_library(platform_static32 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_32bit>)
-	set_target_properties(platform_static32 PROPERTIES COMPILE_FLAGS "-arch ${APPLE_ARCH_32BIT} -DVARIANT_STATIC -fvisibility=hidden")
-	add_dependencies(platform_static32 ranlib ${APPLE_TARGET_TRIPLET_PRIMARY}-ar lipo)
-endif (BUILD_TARGET_32BIT)
-
-if (BUILD_TARGET_64BIT)
-	add_darling_static_library(platform_static64 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_64bit>)
-	set_target_properties(platform_static64 PROPERTIES COMPILE_OPTIONS "-arch;${APPLE_ARCH_64BIT};-DVARIANT_STATIC;-fvisibility=hidden")
-	add_dependencies(platform_static64 ranlib ${APPLE_TARGET_TRIPLET_PRIMARY}-ar lipo)
-endif (BUILD_TARGET_64BIT)
+# The static library dyld links: one archive per slice, joined into platform_static with lipo.
+foreach (arch IN LISTS DARLING_ARCHS)
+	add_darling_static_library(platform_static_${arch} ARCHS ${arch}
+		SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_${arch}>)
+	set_property(TARGET platform_static_${arch} APPEND_STRING PROPERTY
+		COMPILE_FLAGS " -DVARIANT_STATIC -fvisibility=hidden")
+	add_dependencies(platform_static_${arch} ranlib ${APPLE_TARGET_TRIPLET_PRIMARY}-ar lipo)
+endforeach ()
+darling_lipo_static_library_slices(platform_static ${DARLING_ARCHS})
 
 install(TARGETS platform DESTINATION libexec/darling/usr/lib/system)
 

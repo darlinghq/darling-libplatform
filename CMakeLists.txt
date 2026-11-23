@@ -130,6 +130,16 @@ darling_lipo_static_library_slices(platform_static ${DARLING_ARCHS})
 
 install(TARGETS platform DESTINATION libexec/darling/usr/lib/system)
 
+# In-prefix test; the ___bzero return-register quirk only exists in the x86_64 assembly.
+if (ENABLE_TESTS AND TARGET_x86_64)
+	include(darling_exe)
+	add_darling_executable(darling_bzero_return_regress
+		tests/darling_bzero_return_regress.c
+	)
+	install(TARGETS darling_bzero_return_regress
+		DESTINATION libexec/darling/usr/libexec/test/platform)
+endif ()
+
 # These files implement memset, memmove, memcmp and memchr themselves.
 # Without -fno-builtin the compiler may recognise their loops as those
 # very functions and turn them into calls to themselves.

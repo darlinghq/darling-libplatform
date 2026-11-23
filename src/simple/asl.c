@@ -290,7 +290,9 @@ _simple_asl_send(_SIMPLE_STRING __b)
 		if (_simple_sappend(__b, "]\n")) break;
 
 		cp = _simple_string(__b);
-		__sendto(asl_fd, cp, strlen(cp), 0, NULL, 0);
+		/* Logging is best effort: when the log socket's queue is full the
+		 * message is dropped (EAGAIN) instead of blocking the caller. */
+		__sendto(asl_fd, cp, strlen(cp), MSG_DONTWAIT, NULL, 0);
     } while (0);
 #else // TARGET_OS_DRIVERKIT
 	char *cp;

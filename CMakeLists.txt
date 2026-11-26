@@ -131,14 +131,21 @@ darling_lipo_static_library_slices(platform_static ${DARLING_ARCHS})
 
 install(TARGETS platform DESTINATION libexec/darling/usr/lib/system)
 
-# In-prefix test; the ___bzero return-register quirk only exists in the x86_64 assembly.
-if (ENABLE_TESTS AND TARGET_x86_64)
+if (ENABLE_TESTS)
 	include(darling_exe)
-	add_darling_executable(darling_bzero_return_regress
-		tests/darling_bzero_return_regress.c
+	add_darling_executable(os_sync_wait_on_address
+		tests/os_sync_wait_on_address.c
 	)
-	install(TARGETS darling_bzero_return_regress
+	install(TARGETS os_sync_wait_on_address
 		DESTINATION libexec/darling/usr/libexec/test/platform)
+	# In-prefix test; the ___bzero return-register quirk only exists in the x86_64 assembly.
+	if (TARGET_x86_64)
+		add_darling_executable(darling_bzero_return_regress
+			tests/darling_bzero_return_regress.c
+		)
+		install(TARGETS darling_bzero_return_regress
+			DESTINATION libexec/darling/usr/libexec/test/platform)
+	endif ()
 endif ()
 
 # These files implement memset, memmove, memcmp and memchr themselves.

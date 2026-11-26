@@ -74,6 +74,7 @@ set(platform_sources
 	src/os/atomic.c
 	src/os/lock.c
 	src/os/semaphore.c
+	src/os/wait_on_address.c
 	src/setjmp/generic/setjmperr.c
 	src/setjmp/generic/sigaction.c
 	src/setjmp/generic/sigtramp.c
